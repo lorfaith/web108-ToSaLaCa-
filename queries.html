@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Queries - Food Rescue Platform</title>
+    <link rel="stylesheet" href="capstone.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="header-title-container">
+            <h1 class="header-title">A Smart Platform for Rescuing and Redistributing Food</h1>
+        </div>
+        <nav>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="about.html">About Us</a></li>
+                <li><a href="rationale.html">Rationale</a></li>
+                <li><a href="objectives.html">Objectives</a></li>
+                <li><a href="features.html">Features</a></li>
+                <li><a href="database.html">Database Architecture</a></li>
+                <li><a href="erd.html">ERD Diagram</a></li>
+                <li><a href="queries.html">SQL Queries</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="queries">
+        <h2>SQL Queries</h2>
+        <p>Comprehensive database queries for the Food Rescue Platform system management and analytics.</p>
+        
+        <div class="queries-container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number">9</span>
+                    <div class="stat-label">Total Queries</div>
+                </div>
+            </div>
+
+            <div class="db-fiddle-section">
+                <p><strong>Try the queries live:</strong> <a href="https://www.db-fiddle.com/f/gWdTrEX2H5VaZGjRutMEt7/4" target="_blank" class="db-fiddle-link">View Schema and Test Queries on DB Fiddle →</a></p>
+            </div>
+
+            <button class="expand-all-btn" onclick="toggleAll()">Expand All Queries</button>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>1. Near-Expiry Food Items</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Retrieves all food items that are expiring within the next 7 days from grocery stores, helping identify items that need immediate attention for rescue operations.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 1. Retrieve all near-expiry food items listed by grocery stores
+-- (Items expiring within the next 7 days)
+SELECT 
+    p.product_id,
+    p.name,
+    p.description,
+    p.expiryDate,
+    p.quantity,
+    p.price,
+    p.category,
+    sm.storeName,
+    u.name AS store_manager_name,
+    DATEDIFF(p.expiryDate, CURRENT_DATE) AS days_until_expiry
+FROM product p
+JOIN user u ON p.postedBy = u.user_id
+JOIN storemanager sm ON u.user_id = sm.user_id
+WHERE p.expiryDate IS NOT NULL 
+    AND p.expiryDate <= DATE_ADD(CURRENT_DATE, INTERVAL 7 DAY)
+    AND p.status IN ('available', 'approved')
+    AND u.userType = 'storemanager'
+ORDER BY p.expiryDate ASC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>2. Filter by Location and Category</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Filters available food items by specific location (barangay) and category, making it easier for customers to find relevant products nearby in their community.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 2. Filter available food items by location(barangay) and category
+-- (Example: Filter by 'Poblacion Ilaya' and 'Dairy' category)
+SELECT 
+    p.product_id,
+    p.name,
+    p.description,
+    p.quantity,
+    p.price,
+    p.category,
+    p.type,
+    p.expiryDate,
+    sm.storeName,
+    sm.storeAddress,
+    u.name AS store_manager_name,
+    u.address AS manager_address
+FROM product p
+JOIN user u ON p.postedBy = u.user_id
+JOIN storemanager sm ON u.user_id = sm.user_id
+WHERE p.status IN ('available', 'approved')
+    AND p.category = 'Dairy'
+    AND sm.storeAddress LIKE '%Poblacion Ilaya%'
+ORDER BY p.postedDate DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>3. User Roles and Permissions</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Tracks user roles and their corresponding permissions in the system, implementing role-based access control for customers, store managers, admins, and charity organizations.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 3. Track user roles and permissions (Role-Based Access Control)
+SELECT 
+    u.user_id,
+    u.name,
+    u.email,
+    u.username,
+    u.userType,
+    u.accountStatus,
+    u.createdAt,
+    CASE 
+        WHEN u.userType = 'customer' THEN 'Can reserve products, view products for sale'
+        WHEN u.userType = 'storemanager' THEN 'Can post products, respond to donation call, send notifications, manage inventory'
+        WHEN u.userType = 'admin' THEN 'Can approve/disapprove products, manage all users'
+        WHEN u.userType = 'charity' THEN 'Can view products for sale, view donation, post donation calls, receive donations'
+    END AS permissions,
+    CASE 
+        WHEN u.userType = 'storemanager' THEN sm.storeName
+        WHEN u.userType = 'charity' THEN c.organizationName
+        ELSE NULL
+    END AS organization_info
+FROM user u
+LEFT JOIN storemanager sm ON u.user_id = sm.user_id
+LEFT JOIN charity c ON u.user_id = c.user_id
+ORDER BY u.userType, u.name;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>4. Food Reservations Monitoring</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Monitors all food reservations made by customers or charities, including reservation status and expiration tracking to ensure efficient food distribution.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 4. Monitor food reservations made by customers or charities
+SELECT 
+    r.reservation_id,
+    p.name AS product_name,
+    p.category,
+    p.price,
+    p.type,
+    u_reserver.name AS reserved_by_name,
+    u_reserver.userType AS reserver_type,
+    u_poster.name AS posted_by_name,
+    sm.storeName,
+    r.reservedAt,
+    r.reservationExpiration,
+    CASE 
+        WHEN r.reservationExpiration < NOW() THEN 'Expired'
+        WHEN r.reservationExpiration > NOW() THEN 'Active'
+        ELSE 'No Expiration Set'
+    END AS reservation_status
+FROM reservation r
+JOIN product p ON r.product_id = p.product_id
+JOIN user u_reserver ON r.reservedBy = u_reserver.user_id
+JOIN user u_poster ON p.postedBy = u_poster.user_id
+LEFT JOIN storemanager sm ON u_poster.user_id = sm.user_id
+ORDER BY r.reservedAt DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>5. Donation Calls and Responses</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Views all donation calls from charities and tracks store responses, facilitating the donation matching process and measuring community engagement.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 5. View all donation calls from charities and store responses
+SELECT 
+    dc.call_id,
+    dc.title,
+    dc.description,
+    u_charity.name AS charity_name,
+    c.organizationName,
+    dc.postedAt,
+    COUNT(dr.response_id) AS total_responses,
+    GROUP_CONCAT(
+        CONCAT(p.name, ' (', u_responder.name, ')')
+        SEPARATOR '; '
+    ) AS product_responses
+FROM DonationCall dc
+JOIN user u_charity ON dc.postedBy = u_charity.user_id
+LEFT JOIN charity c ON u_charity.user_id = c.user_id
+LEFT JOIN DonationResponse dr ON dc.call_id = dr.call_id
+LEFT JOIN product p ON dr.product_id = p.product_id
+LEFT JOIN user u_responder ON dr.respondedBy = u_responder.user_id
+WHERE u_charity.userType = 'charity'
+GROUP BY dc.call_id, dc.title, dc.description, u_charity.name, c.organizationName, dc.postedAt
+ORDER BY dc.postedAt DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>6. Real-time Notifications</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Shows real-time notifications for new food listings, keeping users informed about fresh product availability and platform activities.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 6. Show real-time notifications for new food listings
+SELECT 
+    n.notification_id,
+    n.type,
+    n.message,
+    n.status,
+    n.createdAt,
+    u_notifier.name AS notified_by_name,
+    u_recipient.userType AS recipient_type,
+    p.name AS related_product_name,
+    p.category AS product_category,
+    p.type AS product_type
+FROM notification n
+LEFT JOIN user u_notifier ON n.notifiedBy = u_notifier.user_id
+JOIN user u_recipient ON n.notifiedTo = u_recipient.user_id
+LEFT JOIN product p ON n.relatedProduct = p.product_id
+WHERE n.type = 'new_product_posted'
+ORDER BY n.createdAt DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>7. Non-compliant Items</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Identifies food items that were rejected by the system for non-compliance, helping maintain quality standards and food safety protocols.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 7. Identify non-compliant items rejected by the system
+SELECT 
+    p.product_id,
+    p.name,
+    p.description,
+    p.category,
+    p.price,
+    p.quantity,
+    p.expiryDate,
+    p.status,
+    p.reasonsForDisapproval,
+    p.postedDate,
+    u.name AS posted_by_name,
+    u.userType AS poster_type,
+    sm.storeName
+FROM product p
+JOIN user u ON p.postedBy = u.user_id
+LEFT JOIN storemanager sm ON u.user_id = sm.user_id
+WHERE p.status = 'disapproved'
+ORDER BY p.postedDate DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>8. Uploaded Documents and Photos</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Lists all uploaded documents and photos associated with product listings, providing comprehensive file management and verification capabilities.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 8. List uploaded documents or photos per listing
+SELECT 
+    p.product_id,
+    p.name AS product_name,
+    p.category,
+    p.status,
+    u.name AS posted_by,
+    'Document' AS file_type,
+    d.fileName,
+    d.path,
+    d.uploadedAt
+FROM product p
+JOIN user u ON p.postedBy = u.user_id
+LEFT JOIN document d ON p.product_id = d.product_id
+WHERE d.document_id IS NOT NULL
+
+UNION ALL
+
+SELECT 
+    p.product_id,
+    p.name AS product_name,
+    p.category,
+    p.status,
+    u.name AS posted_by,
+    'Photo' AS file_type,
+    ph.fileName,
+    ph.path,
+    ph.uploadedAt
+FROM product p
+JOIN user u ON p.postedBy = u.user_id
+LEFT JOIN photo ph ON p.product_id = ph.product_id
+WHERE ph.photo_id IS NOT NULL
+
+ORDER BY product_id, uploadedAt DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="query-header" onclick="toggleQuery(this)">
+                    <h3>9. Food Item History and Usage Analytics</h3>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="query-content">
+                    <div class="query-description">
+                        <p>Shows comprehensive history of food item expirations and usage patterns, providing insights for better inventory management and waste reduction strategies.</p>
+                    </div>
+                    <div class="code-container">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-sql">-- 9. Show history of food item expirations and usage
+SELECT 
+    p.product_id,
+    p.name,
+    p.category,
+    p.expiryDate,
+    p.status,
+    p.quantity,
+    p.type,
+    p.postedDate,
+    u.name AS posted_by,
+    sm.storeName,
+    CASE 
+        WHEN p.expiryDate < CURRENT_DATE THEN 'Expired'
+        WHEN p.expiryDate >= CURRENT_DATE THEN 'Valid'
+        ELSE 'No Expiry Date'
+    END AS expiry_status,
+    DATEDIFF(CURRENT_DATE, p.expiryDate) AS days_past_expiry,
+    COUNT(r.reservation_id) AS times_reserved,
+    COUNT(dr.response_id) AS donation_responses
+FROM product p
+JOIN user u ON p.postedBy = u.user_id
+LEFT JOIN storemanager sm ON u.user_id = sm.user_id
+LEFT JOIN reservation r ON p.product_id = r.product_id
+LEFT JOIN DonationResponse dr ON p.product_id = dr.product_id
+WHERE p.expiryDate IS NOT NULL
+GROUP BY p.product_id, p.name, p.category, p.expiryDate, p.status, p.quantity, p.type, p.postedDate, u.name, sm.storeName
+ORDER BY p.expiryDate DESC;</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>© 2025 Food Rescue Platform - Iloilo Science and Technology University</p>
+                <div class="social-icons">
+                    <a href="https://www.instagram.com/peeeeyyyyyyt" class="social-link" target="_blank"><img src="img/instagram.png"></a>
+                    <a href="https://www.facebook.com/faith.sabio0503" class="social-link" target="_blank">
+                        <img src="img/facebook.png">
+                    </a>
+                    <a href="https://mail.google.com/mail/u/0/#inbox" class="social-link" target="_blank"><img src="img/google.png"></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+
+        let allExpanded = false;
+
+        function toggleQuery(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('active');
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function toggleAll() {
+            const contents = document.querySelectorAll('.query-content');
+            const icons = document.querySelectorAll('.toggle-icon');
+            const button = document.querySelector('.expand-all-btn');
+            
+            allExpanded = !allExpanded;
+            
+            contents.forEach((content, index) => {
+                if (allExpanded) {
+                    content.classList.add('active');
+                    icons[index].style.transform = 'rotate(180deg)';
+                } else {
+                    content.classList.remove('active');
+                    icons[index].style.transform = 'rotate(0deg)';
+                }
+            });
+            
+            button.textContent = allExpanded ? 'Collapse All Queries' : 'Expand All Queries';
+        }
+
+        function copyCode(button) {
+            const codeBlock = button.nextElementSibling.querySelector('code');
+            const text = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = '#27ae60';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#3498db';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                button.textContent = 'Copy Failed';
+                button.style.background = '#e74c3c';
+                
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.style.background = '#3498db';
+                }, 2000);
+            });
+        }
+
+        // Add smooth scrolling for better UX
+        document.querySelectorAll('.query-header').forEach(header => {
+            header.addEventListener('click', () => {
+                setTimeout(() => {
+                    header.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 300);
+            });
+        });
+    </script>
+</body>
+</html>
